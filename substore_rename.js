@@ -27,6 +27,7 @@
  * [name=]  节点添加机场名称前缀；
  * [nf]     把 name= 的前缀值放在最前面
  *** 保留参数
+ * [keep=]  白名单：保留未匹配到国家的节点，多个关键词用+连接，例如 keep=猎户座+Orion
  * [blkey=iplc+gpt+NF+IPLC] 用+号添加多个关键词 保留节点名的自定义字段 需要区分大小写!
  * 如果需要修改 保留的关键词 替换成别的 可以用 > 分割 例如 [#blkey=GPT>新名字+其他关键词] 这将把【GPT】替换成【新名字】
  * 例如      https://raw.githubusercontent.com/Keywos/rule/main/rename.js#flag&blkey=GPT>新名字+NF
@@ -59,6 +60,7 @@ const FGF = inArg.fgf == undefined ? " " : decodeURI(inArg.fgf),
   FNAME = inArg.name == undefined ? "" : decodeURI(inArg.name),
   BLKEY = inArg.blkey == undefined ? "" : decodeURI(inArg.blkey),
   blockquic = inArg.blockquic == undefined ? "" : decodeURI(inArg.blockquic),
+  KEEPKEY = inArg.keep == undefined ? "" : decodeURI(inArg.keep),
   nameMap = {
     cn: "cn",
     zh: "cn",
@@ -168,6 +170,10 @@ function operator(pro) {
   }
 
   const BLKEYS = BLKEY ? BLKEY.split("+") : "";
+  // keep= 白名单：未匹配到国家的节点，命中关键词则保留
+  const KEEPRE = KEEPKEY
+    ? new RegExp(KEEPKEY.split("+").filter(Boolean).map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|"), "i")
+    : null;
 
   pro.forEach((e) => {
     let bktf = false, ens = e.name
@@ -281,6 +287,10 @@ function operator(pro) {
     } else {
       if (nm) {
         e.name = FNAME + FGF + e.name;
+      } else if (KEEPRE && KEEPRE.test(ens)) {
+        // 白名单命中：保留原名，去掉结尾序号，交给 jxh 统一编号
+        const keepName = ens.replace(/[\s_\-·.]*\d+$/, "") || ens;
+        e.name = [FNAME, keepName].filter(Boolean).join(FGF);
       } else {
         e.name = null;
       }
